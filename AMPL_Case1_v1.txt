@@ -1,0 +1,100 @@
+#####################################################################
+# KIE4024 Optimal Control Assignment - FINAL CONSOLIDATED CODE
+# Model: "Augmented" Simeoni et al. Non-Linear State-Space Model
+# Discretization: Trapezoidal Rule
+#####################################################################
+
+# Simulation Parameters
+param tf := 100 ;  
+param n := 200 ;
+param h := tf/n ; 
+
+# Biological Constants
+param k1      := 0.2381 ;
+param k2      := 4.22 ;
+param lambda0 := 0.14202 ;
+param lambda1 := 0.07618 ;
+param psi     := 20 ;
+param V       := 1.0 ;
+param k10     := 0.5 ;
+param W       := 1.0 ;
+param u_max   := 200 ;
+
+# Terminal Penalty Weight (Mayer Term) to stop regrowth
+param P_term  := 100000 ;
+
+## INITIAL VALUES
+param z0_0 := 0.05 ; 
+param z1_0 := 0.0 ;
+param z2_0 := 0.0 ;
+param z3_0 := 0.0 ;
+param q_0  := 0.0 ;
+
+####  state variables  ###########
+# Removed artificial floor constraint (>= 0.0) to prevent Day 47 glitch
+var z0 {i in 0..n} >= 0.0 ;
+s.t. lz0_0 : z0[0] = z0_0 ;
+
+var z1 {i in 0..n} >= 0 ;
+s.t. lz1_0 : z1[0] = z1_0 ;
+
+var z2 {i in 0..n} >= 0 ;
+s.t. lz2_0 : z2[0] = z2_0 ;
+
+var z3 {i in 0..n} >= 0 ;
+s.t. lz3_0 : z3[0] = z3_0 ;
+
+var q {i in 0..n} >= 0 ;
+s.t. lq_0 : q[0] = q_0 ;
+
+var int {i in 0..n}  ;
+s.t. lint0 : int[0] = 0 ;
+
+#####  control variable and constraints  #########
+var u {i in 0..n} >= 0, <= u_max ;
+
+# Total tumor weight
+var w {i in 0..n} = z0[i] + z1[i] + z2[i] + z3[i] ;
+
+# ODE Right hand sides
+var fz0 {i in 0..n} = (lambda0 * z0[i]) / ((1 + ( (lambda0/lambda1) * w[i] )^psi )^(1/psi)) - k2 * (q[i]/V) * z0[i] ;
+var fz1 {i in 0..n} = k2 * (q[i]/V) * z0[i] - k1 * z1[i] ;
+var fz2 {i in 0..n} = k1 * (z1[i] - z2[i]) ;
+var fz3 {i in 0..n} = k1 * (z2[i] - z3[i]) ;
+var fq  {i in 0..n} = -k10 * q[i] + u[i] ;
+
+## cost function (Lagrange)
+var fint {i in 0..n} = w[i] + W*u[i] ;
+
+# OBJECTIVE: Integral cost (Lagrange) + Terminal Penalty (Mayer term)
+minimize obj : int[n] + P_term * w[n];
+
+# ODEs Discretization: Trapezoidal rule
+s.t. lambda_z0 {i in 0..n-1} : z0[i+1] = z0[i] + 0.5*h*( fz0[i]+fz0[i+1] ) ;
+s.t. lambda_z1 {i in 0..n-1} : z1[i+1] = z1[i] + 0.5*h*( fz1[i]+fz1[i+1] ) ;
+s.t. lambda_z2 {i in 0..n-1} : z2[i+1] = z2[i] + 0.5*h*( fz2[i]+fz2[i+1] ) ;
+s.t. lambda_z3 {i in 0..n-1} : z3[i+1] = z3[i] + 0.5*h*( fz3[i]+fz3[i+1] ) ;
+s.t. lambda_q  {i in 0..n-1} : q[i+1]  = q[i]  + 0.5*h*( fq[i] + fq[i+1] ) ;
+s.t. lambda_int {i in 0..n-1} : int[i+1] = int[i] + 0.5*h*(fint[i]+ fint[i+1]) ;
+
+##  SOLVE with IPOPT
+option abs_boundtol 1;
+option solver ipopt;
+option ipopt_options "max_iter=1000 tol=1e-8";
+
+solve;
+
+# PRINT SOLUTION DATA
+printf {i in 0..n}  "%18.10e %18.10e\n",  i*h, z0[i] > 'z0.dat';
+printf {i in 0..n}  "%18.10e %18.10e\n",  i*h, w[i]  > 'w_total.dat';
+printf {i in 0..n}  "%18.10e %18.10e\n",  i*h, q[i]  > 'q_drug.dat';
+printf {i in  0..n} "%18.10e %18.10e\n", i*h, int[i] > 'int.dat';
+printf {i in  0..n} "%18.10f %18.10f\n",  i*h, u[i]   > 'u.dat';
+
+# Adjoint variables and Switching Function
+printf {i in 0..n-1} "%18.10f %18.10f\n", i*h, lambda_z0[i]   > 'lambda-z0.dat';
+printf {i in 0..n-1} "%18.10f %18.10f\n", i*h, lambda_q[i]    > 'lambda-q.dat';
+printf  "%18.10f %18.10f %18.10f %18.10f ", obj, z0[n], w[n], q[n]  > 'OBJ-States-tf.dat';
+printf {i in 0..n-1} "%18.10f %18.10f\n", i*h, (W + lambda_q[i])   > 'Phi.dat';
+
+display tf , n , obj;

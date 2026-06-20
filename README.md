@@ -1,6 +1,8 @@
 This is a group Project of Bukhari, Wong Hong Lien and Chong Li Hang
 # KIE4024 Optimal Control: Tumor Growth Inhibition (TGI) Model
 
+# v3.2 is the model used in Case I Assignment
+
 ## Overview
 This repository contains the numerical optimization models and Python analysis scripts for solving the Augmented Simeoni et al. Tumor Growth Inhibition (TGI) optimal control problem. The project focuses on minimizing tumor burden using a chemotherapeutic agent (Gemcitabine) while penalizing drug toxicity, specifically implementing a clinically realistic 5-day intermittent pulsed dosing schedule.
 
@@ -9,9 +11,6 @@ The optimal control problem is discretized using the Direct Collocation method (
 ## Repository Structure
 ### 1. AMPL Optimization Models
 The project evolved through several iterations to achieve the final clinical constraints:
-* **`v1.txt`**: The baseline unconstrained model. Features continuous control, a basic Lagrange cost function, and a Mayer terminal penalty to prevent tumor regrowth.
-* **`v2.1.txt`**: Introduces the strictly constrained 5-day pulsed dosing schedule using a 12-hour grid step (`h = 0.5`). Implements the quadratic cost function. Control is capped at a highly restricted `u_max = 1.0`.
-* **`v3.1.txt`**: Iteration testing a relaxed control boundary (`u_max = 10.0`) to observe solver behavior and dose distribution.
 * **`v3.2.txt` (CASE 1)**: Uses the biologically accurate `u_max = 200.0`, proper quadratic weighting, and exports the complete matrix of physical states, transit compartments, costates (Lagrange multipliers), and the optimality switching condition.
 
 ### 2. Python Analysis Scripts
